@@ -1,0 +1,37 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT License"
+
+[[mods]]
+modId="lodestars"
+version="1.2.1"
+displayName="Lodestars"
+displayURL="https://legacy.curseforge.com/minecraft/mc-mods/lodestars"
+logoFile="logo.png"
+credits="Created by Andria"
+authors="Andria"
+description="Simple, configurable teleportation mod using lodestones."
+
+# Start of user code block mod configuration
+# End of user code block mod configuration
+
+
+# Start of user code block custom mixins
+# End of user code block custom mixins
+
+[[dependencies.lodestars]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1.176,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.lodestars]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.1]"
+    ordering="AFTER"
+    side="BOTH"
+
+# Start of user code block dependencies configuration
+# End of user code block dependencies configuration
