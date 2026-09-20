@@ -37,6 +37,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 
 public class LodestarItem extends Item{
+
 	public LodestarItem() {
 		super(new Item.Properties()
 			.stacksTo(1)
@@ -145,15 +146,14 @@ public class LodestarItem extends Item{
 		}
 	}
 	
-    // Teleports the player to their attuned lodestone if they have one, or to the lodestar's attuned lodestone if player attunement is set to false.
-    // Todo: Find some way to ensure the teleport sound effect only plays when the player actually teleports instead of just when the item is used.
+    // Teleports the player to their attuned lodestone if they have one, or to the lodestar's attuned lodestone if player attunement is set to false.=
 	@Override
 	public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
 		ItemStack retval = super.finishUsingItem(stack, level, entity);
 		if (entity == null) {
 			return retval;
 		}
-
+        
 		boolean has_destination = false;
 		Lodestars.PlayerData _data = entity.getData(Lodestars.PLAYER_DATA);
 		if (Config.ATTUNE_TO_PLAYER.get()) {
@@ -220,29 +220,19 @@ public class LodestarItem extends Item{
 					
 					return retval;
 				}
-				
-				// Teleport player.
-				if (!_serverPlayer.level().dimension().equals(destination_level)) {
-					_serverPlayer.teleportTo(destination_level, destination_x + 0.5, destination_y + 1, destination_z + 0.5, entity.getYRot(), entity.getXRot());
-					_serverPlayer.connection.send(new ClientboundPlayerAbilitiesPacket(_serverPlayer.getAbilities()));
 
-					for (MobEffectInstance _effectinstance : _serverPlayer.getActiveEffects())
-						_serverPlayer.connection.send(new ClientboundUpdateMobEffectPacket(_serverPlayer.getId(), _effectinstance, false));
-				} else {
-					_serverPlayer.teleportTo(destination_x + 0.5, destination_y + 1, destination_z + 0.5);
-				}
+				// Teleport player.
+                _serverPlayer.teleportTo(destination_level, destination_x + 0.5, destination_y + 1, destination_z + 0.5, entity.getYRot(), entity.getXRot());
+                _serverPlayer.connection.send(new ClientboundPlayerAbilitiesPacket(_serverPlayer.getAbilities()));
+
+                for (MobEffectInstance _effectinstance : _serverPlayer.getActiveEffects())
+                    _serverPlayer.connection.send(new ClientboundUpdateMobEffectPacket(_serverPlayer.getId(), _effectinstance, false));
 				
-				// Play teleport sound effect.
+				// Play teleportation sound effects
 				if (level instanceof Level _level) {
-					if (!_level.isClientSide()) {
-						_level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
-						destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
-						destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1);
-					} else {
-						_level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1, false);
-						destination_level.playLocalSound(destination_x + 0.5, destination_y + 1, destination_z + 0.5, BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1, false);
-						destination_level.playLocalSound(destination_x + 0.5, destination_y + 1, destination_z + 0.5, BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1, false);
-					}
+                    _level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
+                    destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
+                    destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1);
 				}
 			}
 			

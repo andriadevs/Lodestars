@@ -128,11 +128,9 @@ public class Lodestars {
     }
 
     // Payload used for transferring player data between the server and the client.
-    public record PlayerDataPayload(String uuid, int x, int y, int z, String dim, boolean exists) implements CustomPacketPayload {
+    public record PlayerDataPayload(int x, int y, int z, String dim, boolean exists) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<PlayerDataPayload> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(MODID, "player_data"));
         public static final StreamCodec<ByteBuf, PlayerDataPayload> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8,
-            PlayerDataPayload::uuid,
             ByteBufCodecs.VAR_INT,
             PlayerDataPayload::x,
             ByteBufCodecs.VAR_INT,
@@ -216,7 +214,7 @@ public class Lodestars {
     	
     	public void syncPlayerVariables(Entity entity) {
 			if (entity instanceof ServerPlayer serverPlayer)
-				PacketDistributor.sendToPlayer(serverPlayer, new PlayerDataPayload(entity.getUUID().toString(), (int) lodestar_destination_x, (int) lodestar_destination_y, (int) lodestar_destination_z, lodestar_destination_dimension, lodestar_destination_exists));
+				PacketDistributor.sendToPlayer(serverPlayer, new PlayerDataPayload((int) lodestar_destination_x, (int) lodestar_destination_y, (int) lodestar_destination_z, lodestar_destination_dimension, lodestar_destination_exists));
 		}
     }
 }
