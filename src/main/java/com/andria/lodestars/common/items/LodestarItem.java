@@ -36,6 +36,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 
+
 public class LodestarItem extends Item{
 
 	public LodestarItem() {
@@ -75,13 +76,13 @@ public class LodestarItem extends Item{
 	}
 	
     // Tooltip text, shows the location of the last attuned lodestone or tells the player they haven't attuned to a lodestone if they haven't.
-    // Todo: Instead of showing, "in another dimension", show "in [dimension name] at [location]"
 	@Override
 	@OnlyIn(Dist.CLIENT)
 	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> list, TooltipFlag flag) {
 		super.appendHoverText(stack, context, list, flag);
 		Entity entity = stack.getEntityRepresentation() != null ? stack.getEntityRepresentation() : Minecraft.getInstance().player;
 		String hoverText = null;
+        String destination_dimension = "";
 		double destination_x = 0.0;
 		double destination_y = 0.0;
 		double destination_z = 0.0;
@@ -107,10 +108,12 @@ public class LodestarItem extends Item{
 
 		if (has_destination) {
 			if (Config.ATTUNE_TO_PLAYER.get()) {
-				if (_data.lodestar_destination_dimension.equals(player_dimension)) {
+                destination_dimension = _data.lodestar_destination_dimension;
+
+				if (destination_dimension.equals(player_dimension)) {
 					same_level = true;
 				}
-
+                
 				destination_x = _data.lodestar_destination_x;
 				destination_y = _data.lodestar_destination_y;
 				destination_z = _data.lodestar_destination_z;
@@ -128,7 +131,8 @@ public class LodestarItem extends Item{
 				hoverText = "Attuned to a lodestone at: (" + Math.round(destination_x) + ", " + Math.round(destination_y)
 				+ ", " + Math.round(destination_z) + ")";
 			} else {
-				hoverText = "Attuned to a lodestone in another dimension.";
+				hoverText = "Attuned to a lodestone in " + getNiceDimensionName(destination_dimension) + " at: (" + Math.round(destination_x) + ", " + Math.round(destination_y)
+				+ ", " + Math.round(destination_z) + ")";
 			}
             
 		} else {
@@ -318,5 +322,31 @@ public class LodestarItem extends Item{
 			return InteractionResult.SUCCESS;
 		}
 		return InteractionResult.PASS;
-	}
+    }
+
+    // Takes the resourcekey string and turns it into a nicer-looking dimension name string for the tooltip.
+    private static String getNiceDimensionName(String rkey) {
+        try {
+            String name  = rkey.split(":")[2].split("]")[0];
+            StringBuilder sb = new StringBuilder();
+            boolean append_the = true;
+
+            for (String s : name.split("_")) {
+                if (s.equals("the") || s.equals("a") || s.equals("an")) {
+                    append_the = false;
+                    sb.append(s + " ");
+                } else {
+                    sb.append(s.substring(0, 1).toUpperCase() + s.substring(1) + " ");
+                }
+            }
+
+            if (append_the) {
+                return "the " + sb.toString().trim();
+            } else {
+                return sb.toString().trim();
+            }
+        } catch (Exception e) {
+            return "another dimension";
+        }
+    }
 }
