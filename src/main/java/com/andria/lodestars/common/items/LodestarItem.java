@@ -20,6 +20,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 
 import java.util.List;
+import java.util.Random;
 
 import com.andria.lodestars.Config;
 import com.andria.lodestars.Lodestars;
@@ -27,6 +28,7 @@ import com.andria.lodestars.Lodestars;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.*;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
@@ -38,6 +40,8 @@ import net.minecraft.sounds.SoundSource;
 
 
 public class LodestarItem extends Item{
+
+    private static final Random random = new Random();
 
 	public LodestarItem() {
 		super(new Item.Properties()
@@ -68,7 +72,7 @@ public class LodestarItem extends Item{
 			return false;
 		}
 
-		if (entity instanceof Player _plrCldCheck1 && _plrCldCheck1.getCooldowns().isOnCooldown(stack.getItem())) {
+		if (entity instanceof Player player && player.getCooldowns().isOnCooldown(stack.getItem())) {
 			return false;
 		}
 
@@ -159,35 +163,34 @@ public class LodestarItem extends Item{
 		}
         
 		boolean has_destination = false;
-		Lodestars.PlayerData _data = entity.getData(Lodestars.PLAYER_DATA);
+		Lodestars.PlayerData data = entity.getData(Lodestars.PLAYER_DATA);
 		if (Config.ATTUNE_TO_PLAYER.get()) {
-			has_destination = _data.lodestar_destination_exists;
+			has_destination = data.lodestar_destination_exists;
 		} else {
 			has_destination = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getBoolean("lodestar_destination_exists");
 		}
 
 		if (has_destination) {
-			double destination_x = 0.0;
-			double destination_y = 0.0;
-			double destination_z = 0.0;
+			if (entity instanceof ServerPlayer serverPlayer && !serverPlayer.level().isClientSide()) {
+                ServerLevel destination_level = entity.getServer().getLevel(Level.OVERWORLD);
+                double destination_x = 0.0;
+                double destination_y = 0.0;
+                double destination_z = 0.0;
 
-			if (entity instanceof ServerPlayer _serverPlayer && !_serverPlayer.level().isClientSide()) {
-				ServerLevel destination_level = _serverPlayer.getServer().getLevel(Level.OVERWORLD);
-				
 				// Obtain teleport destination information.
 				if (Config.ATTUNE_TO_PLAYER.get()) {
-					for (ServerLevel a_level : _serverPlayer.getServer().getAllLevels()) {
-						if (a_level.dimension().toString().equals(_data.lodestar_destination_dimension)) {
+					for (ServerLevel a_level : serverPlayer.getServer().getAllLevels()) {
+						if (a_level.dimension().toString().equals(data.lodestar_destination_dimension)) {
 							destination_level = a_level;
 						}
 					}
 
-					destination_x = _data.lodestar_destination_x;
-					destination_y = _data.lodestar_destination_y;
-					destination_z = _data.lodestar_destination_z;
+					destination_x = data.lodestar_destination_x;
+					destination_y = data.lodestar_destination_y;
+					destination_z = data.lodestar_destination_z;
 
 				} else {
-					for (ServerLevel a_level : _serverPlayer.getServer().getAllLevels()) {
+					for (ServerLevel a_level : serverPlayer.getServer().getAllLevels()) {
 						if (a_level.dimension().toString().equals(stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getString("lodestar_destination_dimension"))) {
 							destination_level = a_level;
 						}
@@ -201,69 +204,66 @@ public class LodestarItem extends Item{
 				// Verify that lodestone still exists.
 				if (!(destination_level.getBlockState(BlockPos.containing(destination_x, destination_y, destination_z)).getBlock() == Blocks.LODESTONE)) {
 					if (Config.ATTUNE_TO_PLAYER.get()) {
-						_data.lodestar_destination_exists = false;
-						_data.syncPlayerVariables(_serverPlayer);
+						data.lodestar_destination_exists = false;
+						data.syncPlayerVariables(serverPlayer);
 					} else {
 						CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putBoolean("lodestar_destination_exists", false));
 					}
 					
-					if (level instanceof Level _level) {
-						if (!_level.isClientSide()) {
-							_level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.lodestone.place")), SoundSource.NEUTRAL, 1, 1);
-						} else {
-							_level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.lodestone.place")), SoundSource.NEUTRAL, 1, 1, false);
-						}
-					}
-					
+                    level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.lodestone.place")), SoundSource.NEUTRAL, 1, 1);
+
 					// If lodestone does not exist, tell player that teleport failed.
-					if (entity instanceof Player _player) {
-						_player.getCooldowns().addCooldown(stack.getItem(), 20);
-						_player.stopUsingItem();
-						_player.displayClientMessage(Component.literal("Failed to return to missing lodestone."), true);
-					}
+                    serverPlayer.getCooldowns().addCooldown(stack.getItem(), 20);
+                    serverPlayer.stopUsingItem();
+                    serverPlayer.displayClientMessage(Component.literal("Failed to return to missing lodestone."), true);
 					
 					return retval;
 				}
 
 				// Teleport player.
-                _serverPlayer.teleportTo(destination_level, destination_x + 0.5, destination_y + 1, destination_z + 0.5, entity.getYRot(), entity.getXRot());
-                _serverPlayer.connection.send(new ClientboundPlayerAbilitiesPacket(_serverPlayer.getAbilities()));
+                serverPlayer.teleportTo(destination_level, destination_x + 0.5, destination_y + 1, destination_z + 0.5, entity.getYRot(), entity.getXRot());
+                serverPlayer.connection.send(new ClientboundPlayerAbilitiesPacket(serverPlayer.getAbilities()));
 
-                for (MobEffectInstance _effectinstance : _serverPlayer.getActiveEffects())
-                    _serverPlayer.connection.send(new ClientboundUpdateMobEffectPacket(_serverPlayer.getId(), _effectinstance, false));
+                for (MobEffectInstance _effectinstance : serverPlayer.getActiveEffects())
+                    serverPlayer.connection.send(new ClientboundUpdateMobEffectPacket(serverPlayer.getId(), _effectinstance, false));
 				
 				// Play teleportation sound effects
-				if (level instanceof Level _level) {
-                    _level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
-                    destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
-                    destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1);
-				}
-			}
+                level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
+                destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.bell.resonate")), SoundSource.NEUTRAL, 1, 1);
+                destination_level.playSound(null, BlockPos.containing(destination_x + 0.5, destination_y + 1, destination_z + 0.5), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1);
+            }
+
+            // Do teleportation particles
+            for (int i = 0; i < 24; i++) {
+                level.addParticle(
+                    ParticleTypes.END_ROD,
+                    entity.getX() + (random.nextDouble() - 0.5),
+                    entity.getY() + random.nextDouble(),
+                    entity.getZ() + (random.nextDouble() - 0.5),
+                    0,
+                    random.nextDouble() * 0.5f + 0.1f,
+                    0
+                );
+            }
 			
-			if (entity instanceof Player _player) {
-				_player.getCooldowns().addCooldown(stack.getItem(), (int) (Config.LODESTAR_COOLDOWN.get() * 20));
+			if (entity instanceof Player player) {
+				player.getCooldowns().addCooldown(stack.getItem(), (int) (Config.LODESTAR_COOLDOWN.get() * 20));
 			}
 
-			if (!Config.INFINITE_USES.get() && level instanceof ServerLevel _level) {
-				stack.hurtAndBreak(Config.LODESTAR_USE_COST.get(), _level, null, _stkprov -> {});
+			if (!Config.INFINITE_USES.get() && level instanceof ServerLevel serverLevel) {
+				stack.hurtAndBreak(Config.LODESTAR_USE_COST.get(), serverLevel, null, _stkprov -> {});
 			}
 
 		} else {
-			if (level instanceof Level _level) {
-				if (!_level.isClientSide()) {
-					_level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.lodestone.place")), SoundSource.NEUTRAL, 1, 1);
-				} else {
-					_level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.lodestone.place")), SoundSource.NEUTRAL, 1, 1, false);
-				}
-			}
+            level.playSound(null, BlockPos.containing(entity.getX(), entity.getY(), entity.getZ()), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("block.lodestone.place")), SoundSource.NEUTRAL, 1, 1);
 
-			if (entity instanceof Player _player) {
-				_player.getCooldowns().addCooldown(stack.getItem(), 20);
-				_player.stopUsingItem();
+			if (entity instanceof Player player) {
+				player.getCooldowns().addCooldown(stack.getItem(), 20);
+				player.stopUsingItem();
 				if (Config.ATTUNE_TO_PLAYER.get()) {
-					_player.displayClientMessage(Component.literal("You are not attuned to a lodestone."), true);
+					player.displayClientMessage(Component.literal("You are not attuned to a lodestone."), true);
 				} else {
-					_player.displayClientMessage(Component.literal("This lodestar is not attuned to a lodestone."), true);
+					player.displayClientMessage(Component.literal("This lodestar is not attuned to a lodestone."), true);
 				}
 			}
 		}
@@ -294,31 +294,27 @@ public class LodestarItem extends Item{
 		if (((level.getBlockState(BlockPos.containing(x, y, z))).getBlock() == Blocks.LODESTONE) && player.isShiftKeyDown()) {
 			player.displayClientMessage(Component.literal("Attuned to this lodestone."), true);
 
-			if (level instanceof Level _level) {
-				// Store lodestone information.
-				if (Config.ATTUNE_TO_PLAYER.get()) {
-					Lodestars.PlayerData _data = player.getData(Lodestars.PLAYER_DATA);
-					_data.lodestar_destination_dimension = player.level().dimension().toString();
-					_data.lodestar_destination_x = x;
-					_data.lodestar_destination_y = y;
-					_data.lodestar_destination_z = z;
-					_data.lodestar_destination_exists = true;
-					_data.syncPlayerVariables(player);
-				} else {
-					CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putString("lodestar_destination_dimension", player.level().dimension().toString()));
-					CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putDouble("lodestar_destination_x", x));
-					CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putDouble("lodestar_destination_y", y));
-					CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putDouble("lodestar_destination_z", z));
-					CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putBoolean("lodestar_destination_exists", true));
-				}
+            // Store lodestone information.
+            if (Config.ATTUNE_TO_PLAYER.get()) {
+                Lodestars.PlayerData data = player.getData(Lodestars.PLAYER_DATA);
+                data.lodestar_destination_dimension = player.level().dimension().toString();
+                data.lodestar_destination_x = x;
+                data.lodestar_destination_y = y;
+                data.lodestar_destination_z = z;
+                data.lodestar_destination_exists = true;
+                data.syncPlayerVariables(player);
+            } else {
+                CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putString("lodestar_destination_dimension", player.level().dimension().toString()));
+                CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putDouble("lodestar_destination_x", x));
+                CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putDouble("lodestar_destination_y", y));
+                CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putDouble("lodestar_destination_z", z));
+                CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putBoolean("lodestar_destination_exists", true));
+            }
 
-				if (!_level.isClientSide()) {
-					_level.playSound(null, BlockPos.containing(x, y, z), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1);
-				} else {
-					_level.playLocalSound(x, y, z, BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1, false);
-				}
-			}
+            level.playSound(null, BlockPos.containing(x, y, z), BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse("entity.ender_eye.death")), SoundSource.NEUTRAL, 1, 1);
+    
 			player.getCooldowns().addCooldown(stack.getItem(), 20);
+
 			return InteractionResult.SUCCESS;
 		}
 		return InteractionResult.PASS;

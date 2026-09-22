@@ -150,15 +150,15 @@ public class Lodestars {
         }
         
         // Handles sending data over to the server player.
-        public static void handleDataServer(final PlayerDataPayload data, final IPayloadContext context) {
-        	if (context.flow() == PacketFlow.SERVERBOUND && data != null) {
+        public static void handleDataServer(final PlayerDataPayload _data, final IPayloadContext context) {
+        	if (context.flow() == PacketFlow.SERVERBOUND && _data != null) {
         		context.enqueueWork(() -> {
-        			PlayerData _data = context.player().getData(PLAYER_DATA);
-        			_data.lodestar_destination_x = data.x;
-        			_data.lodestar_destination_y = data.y;
-        			_data.lodestar_destination_z = data.z;
-        			_data.lodestar_destination_dimension = data.dim;
-        			_data.lodestar_destination_exists = data.exists;
+        			PlayerData data = context.player().getData(PLAYER_DATA);
+        			data.lodestar_destination_x = _data.x;
+        			data.lodestar_destination_y = _data.y;
+        			data.lodestar_destination_z = _data.z;
+        			data.lodestar_destination_dimension = _data.dim;
+        			data.lodestar_destination_exists = _data.exists;
         		}).exceptionally(e -> {
         			context.connection().disconnect(Component.literal(e.getMessage()));
         			return null;
@@ -167,15 +167,15 @@ public class Lodestars {
         }
         
         // Handles copying data from the server player to the client.
-        public static void handleDataClient(final PlayerDataPayload data, final IPayloadContext context) {
-        	if (context.flow() == PacketFlow.CLIENTBOUND && data != null) {
+        public static void handleDataClient(final PlayerDataPayload _data, final IPayloadContext context) {
+        	if (context.flow() == PacketFlow.CLIENTBOUND && _data != null) {
         		context.enqueueWork(() -> {
-        			PlayerData _data = context.player().getData(PLAYER_DATA);
-        			_data.lodestar_destination_x = data.x;
-        			_data.lodestar_destination_y = data.y;
-        			_data.lodestar_destination_z = data.z;
-        			_data.lodestar_destination_dimension = data.dim;
-        			_data.lodestar_destination_exists = data.exists;
+        			PlayerData data = context.player().getData(PLAYER_DATA);
+        			data.lodestar_destination_x = _data.x;
+        			data.lodestar_destination_y = _data.y;
+        			data.lodestar_destination_z = _data.z;
+        			data.lodestar_destination_dimension = _data.dim;
+        			data.lodestar_destination_exists = _data.exists;
         		}).exceptionally(e -> {
         			context.connection().disconnect(Component.literal(e.getMessage()));
         			return null;
